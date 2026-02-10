@@ -20,7 +20,39 @@ initializeProtocol({
     cryptoModule: crypto.webcrypto
 });
 
-export async function activate(context: vscode.ExtensionContext) {
+/**
+ * API exported to other extensions for collaboration features
+ */
+export interface OpenCollaborationAPI {
+    /**
+     * Get the current collaboration instance
+     * Returns undefined if not in an active collaboration session
+     */
+    getCollaborationInstance(): typeof CollaborationInstance.Current;
+    
+    /**
+     * Check if currently in an active collaboration session
+     */
+    isActive(): boolean;
+    
+    /**
+     * Update custom webview state in the awareness protocol
+     * This will broadcast to all peers in the session
+     * @param key - Unique key for your extension's state (e.g., 'ballerina.diagram')
+     * @param state - Any JSON-serializable state object
+     */
+    updateWebviewState(key: string, state: any): void;
+    
+    /**
+     * Subscribe to webview state changes from other peers
+     * @param key - State key to watch
+     * @param callback - Called when state changes
+     * @returns Disposable to unsubscribe
+     */
+    onWebviewStateChanged(key: string, callback: (peerId: number, state: any) => void): vscode.Disposable;
+}
+
+export async function activate(context: vscode.ExtensionContext): Promise<OpenCollaborationAPI> {
     const container = createContainer(context);
     container.bind(Fetch).toConstantValue(fetch);
     const commands = container.get(Commands);
@@ -36,6 +68,55 @@ export async function activate(context: vscode.ExtensionContext) {
         await closeSharedEditors();
         removeWorkspaceFolders();
     }
+    
+    return {
+        getCollaborationInstance: () => CollaborationInstance.Current,
+        
+        isActive: () => CollaborationInstance.Current !== undefined,
+        
+        updateWebviewState: (key: string, state: any) => {
+            const instance = CollaborationInstance.Current;
+            if (!instance) {
+                console.warn('[OCT API] No active collaboration session');
+                return;
+            }
+            
+            // Update local awareness state with custom key
+            const awareness = (instance as any).yAwareness;
+            if (awareness) {
+                awareness.setLocalStateField(key, state);
+            }
+        },
+        
+        onWebviewStateChanged: (key: string, callback: (peerId: number, state: any) => void) => {
+            const instance = CollaborationInstance.Current;
+            if (!instance) {
+                console.warn('[OCT API] No active collaboration session');
+                return { dispose: () => {} };
+            }
+            
+            const awareness = (instance as any).yAwareness;
+            if (!awareness) {
+                return { dispose: () => {} };
+            }
+            
+            const handler = ({ added, updated, removed }: { added: number[], updated: number[], removed: number[] }) => {
+                const states = awareness.getStates();
+                for (const clientId of [...added, ...updated]) {
+                    const state = states.get(clientId);
+                    if (state && state[key]) {
+                        callback(clientId, state[key]);
+                    }
+                }
+            };
+            
+            awareness.on('change', handler);
+            
+            return {
+                dispose: () => awareness.off('change', handler)
+            };
+        }
+    };
 }
 
 export async function deactivate(): Promise<void> {

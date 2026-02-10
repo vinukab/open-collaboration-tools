@@ -15,6 +15,8 @@ export namespace OctCommands {
     export const CloseConnection = 'oct.closeConnection';
     export const SignOut = 'oct.signOut';
     export const DevFuzzing = 'oct.dev.fuzzing';
+    export const UpdateTextSelection = 'oct.updateTextSelection';
+    export const RerenderPresence = 'oct.rerenderPresence';
 }
 
 export namespace CodeCommands {

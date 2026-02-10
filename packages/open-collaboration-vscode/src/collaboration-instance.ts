@@ -750,8 +750,9 @@ export class CollaborationInstance implements vscode.Disposable {
             editor.revealRange(range);
         }
     }
-
-    private updateTextSelection(editor?: vscode.TextEditor): void {
+    
+    // Host -> Guest: Update the text selection of the host in the guest editors
+    updateTextSelection(editor?: vscode.TextEditor): void {
         if (!editor) {
             this.setSharedSelection(undefined);
             return;
@@ -910,7 +911,7 @@ export class CollaborationInstance implements vscode.Disposable {
         return edit;
     }
 
-    private rerenderPresence() {
+    rerenderPresence(): void {
         const states = this.yjsAwareness.getStates() as Map<number, types.ClientAwareness>;
         for (const [clientID, state] of states.entries()) {
             if (clientID === this.yjs.clientID) {
@@ -928,7 +929,8 @@ export class CollaborationInstance implements vscode.Disposable {
         }
     }
 
-    private renderTextPresence(peer: DisposablePeer, selection: types.ClientTextSelection): void {
+    // Guest -> Host: Render the text selection of the guests in the host editor
+    renderTextPresence(peer: DisposablePeer, selection: types.ClientTextSelection): void {
         const nameTagVisible = peer.lastUpdated !== undefined && Date.now() - peer.lastUpdated < 1900;
         const { path, textSelections } = selection;
         const uri = CollaborationUri.getResourceUri(path);
@@ -977,12 +979,12 @@ export class CollaborationInstance implements vscode.Disposable {
                 }
             }
         }
-        for (const editor of editorsToRemove) {
-            editor.setDecorations(peer.decoration.before, []);
-            editor.setDecorations(peer.decoration.after, []);
-            editor.setDecorations(peer.decoration.nameTags.default, []);
-            editor.setDecorations(peer.decoration.nameTags.inverted, []);
-        }
+        // for (const editor of editorsToRemove) {
+        //     editor.setDecorations(peer.decoration.before, []);
+        //     editor.setDecorations(peer.decoration.after, []);
+        //     editor.setDecorations(peer.decoration.nameTags.default, []);
+        //     editor.setDecorations(peer.decoration.nameTags.inverted, []);
+        // }
     }
 
     private getNormalizedDocument(document: vscode.TextDocument, path: string): YjsNormalizedTextDocument {

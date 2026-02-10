@@ -75,6 +75,12 @@ export class Commands {
                 await vscode.commands.executeCommand(OctCommands.CloseConnection);
                 await this.secretStorage.deleteUserTokens();
                 vscode.window.showInformationMessage(vscode.l10n.t('Signed out successfully!'));
+            }),
+            vscode.commands.registerCommand(OctCommands.UpdateTextSelection, () => {
+                CollaborationInstance.Current?.updateTextSelection(vscode.window.activeTextEditor);
+            }),
+            vscode.commands.registerCommand(OctCommands.RerenderPresence, () => {
+                CollaborationInstance.Current?.rerenderPresence();
             })
         );
         if (typeof process === 'object' && process && process.env?.DEVELOPMENT === 'true') {
