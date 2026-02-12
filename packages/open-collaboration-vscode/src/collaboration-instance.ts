@@ -979,12 +979,12 @@ export class CollaborationInstance implements vscode.Disposable {
                 }
             }
         }
-        // for (const editor of editorsToRemove) {
-        //     editor.setDecorations(peer.decoration.before, []);
-        //     editor.setDecorations(peer.decoration.after, []);
-        //     editor.setDecorations(peer.decoration.nameTags.default, []);
-        //     editor.setDecorations(peer.decoration.nameTags.inverted, []);
-        // }
+        for (const editor of editorsToRemove) {
+            editor.setDecorations(peer.decoration.before, []);
+            editor.setDecorations(peer.decoration.after, []);
+            editor.setDecorations(peer.decoration.nameTags.default, []);
+            editor.setDecorations(peer.decoration.nameTags.inverted, []);
+        }
     }
 
     private getNormalizedDocument(document: vscode.TextDocument, path: string): YjsNormalizedTextDocument {

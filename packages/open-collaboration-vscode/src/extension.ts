@@ -36,6 +36,20 @@ export interface OpenCollaborationAPI {
     isActive(): boolean;
     
     /**
+     * Get the shared Yjs document for persistent collaborative state
+     * Use this to create Y.Maps, Y.Arrays, etc. that sync across all peers
+     * Returns undefined if not in an active collaboration session
+     */
+    getSharedDoc(): any | undefined; // Y.Doc
+    
+    /**
+     * Get the awareness protocol instance for ephemeral state
+     * Use this for cursor positions, selections, and transient presence data
+     * Returns undefined if not in an active collaboration session
+     */
+    getAwareness(): any | undefined; // awarenessProtocol.Awareness
+    
+    /**
      * Update custom webview state in the awareness protocol
      * This will broadcast to all peers in the session
      * @param key - Unique key for your extension's state (e.g., 'ballerina.diagram')
@@ -74,6 +88,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<OpenCo
         
         isActive: () => CollaborationInstance.Current !== undefined,
         
+        getSharedDoc: () => {
+            const instance = CollaborationInstance.Current;
+            if (!instance) {
+                return undefined;
+            }
+            return (instance as any).yjs;
+        },
+        
+        getAwareness: () => {
+            const instance = CollaborationInstance.Current;
+            if (!instance) {
+                return undefined;
+            }
+            return (instance as any).yjsAwareness;
+        },
+        
         updateWebviewState: (key: string, state: any) => {
             const instance = CollaborationInstance.Current;
             if (!instance) {
@@ -82,7 +112,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<OpenCo
             }
             
             // Update local awareness state with custom key
-            const awareness = (instance as any).yAwareness;
+            const awareness = (instance as any).yjsAwareness;
             if (awareness) {
                 awareness.setLocalStateField(key, state);
             }
@@ -95,7 +125,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<OpenCo
                 return { dispose: () => {} };
             }
             
-            const awareness = (instance as any).yAwareness;
+            const awareness = (instance as any).yjsAwareness;
             if (!awareness) {
                 return { dispose: () => {} };
             }
