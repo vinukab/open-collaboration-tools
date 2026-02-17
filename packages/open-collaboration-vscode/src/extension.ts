@@ -50,6 +50,12 @@ export interface OpenCollaborationAPI {
     getAwareness(): any | undefined; // awarenessProtocol.Awareness
     
     /**
+     * Get the current client's Yjs client ID
+     * Returns undefined if not in an active collaboration session
+     */
+    getClientId(): number | undefined;
+    
+    /**
      * Update custom webview state in the awareness protocol
      * This will broadcast to all peers in the session
      * @param key - Unique key for your extension's state (e.g., 'ballerina.diagram')
@@ -102,6 +108,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<OpenCo
                 return undefined;
             }
             return (instance as any).yjsAwareness;
+        },
+        
+        getClientId: () => {
+            const instance = CollaborationInstance.Current;
+            if (!instance) {
+                return undefined;
+            }
+            const yjs = (instance as any).yjs;
+            return yjs ? yjs.clientID : undefined;
         },
         
         updateWebviewState: (key: string, state: any) => {
