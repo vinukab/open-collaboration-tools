@@ -119,13 +119,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<OpenCo
             return yjs ? yjs.clientID : undefined;
         },
         
+        // update the local awareness state with the given key and state, which will be broadcast to other peers
         updateWebviewState: (key: string, state: any) => {
             const instance = CollaborationInstance.Current;
             if (!instance) {
                 console.warn('[OCT API] No active collaboration session');
                 return;
-            }
-            
+            }     
             // Update local awareness state with custom key
             const awareness = (instance as any).yjsAwareness;
             if (awareness) {
@@ -146,14 +146,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<OpenCo
             }
             
             const handler = ({ added, updated, removed }: { added: number[], updated: number[], removed: number[] }) => {
+                console.log(`[OCT API] Awareness change for key '${key}': added=${JSON.stringify(added)}, updated=${JSON.stringify(updated)}, removed=${JSON.stringify(removed)}`);
+                
                 const states = awareness.getStates();
+                console.log(`[OCT API] Total states in awareness: ${states.size}`);
+            
                 for (const clientId of [...added, ...updated]) {
                     const state = states.get(clientId);
+                    console.log(`[OCT API] Client ${clientId} state keys: ${state ? Object.keys(state).join(', ') : 'null'}`);
+                    console.log(`[OCT API] Has key '${key}': ${!!(state && state[key])}`);
+                    
                     if (state && state[key]) {
+                        console.log(`[OCT API] Calling callback for client ${clientId} with state:`, JSON.stringify(state[key]).substring(0, 200));
                         callback(clientId, state[key]);
+                    } else {
+                        console.log(`[OCT API] Skipping client ${clientId} - state ${state ? 'exists but missing key' : 'is null'}`);
                     }
                 }
             };
+            const initialStates = awareness.getStates();
+            console.log(`[OCT API] Replaying initial awareness states for key '${key}': ${initialStates.size}`);
+            for (const [clientId, state] of initialStates) {
+                if (state && state[key]) {
+                    console.log(`[OCT API] Initial callback for client ${clientId} with key '${key}'`);
+                    callback(clientId, state[key]);
+                }
+            }
             
             awareness.on('change', handler);
             
