@@ -41,18 +41,26 @@ function App() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const messagesRef = useRef<HTMLDivElement>(null);
 
+    const formatTime = (ts?: number) => {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     useEffect(() => {
         messenger
             .sendRequest(getHistory, { type: 'extension' })
             .then((history) => {
-                setMessages(history);
+                // ensure history items have a timestamp (fallback to now)
+                setMessages(history.map(h => ({ ...h, timestamp: h.timestamp ?? Date.now() })));
             });
 
         const onMessage =  messenger.onNotification(
             messageReceived,
             (message) => {
                 inSetupStage = false;
-                setMessages((prev) => [...prev, message]);
+                const msg = { ...message, timestamp: message.timestamp ?? Date.now() };
+                setMessages((prev) => [...prev, msg]);
             },
         );
 
@@ -83,16 +91,30 @@ function App() {
         <div className="chat-container">
             <h2 className="title">Session Chat</h2>
             <div className="messages-container" ref={messagesRef}>
-                {messages.map((msg, idx) => (
-                    <div key={idx} className="message">
-                        <span style={{ color: getColorCss(msg.color) }}>
-                            {msg.user}{msg.isDirect ? '*' : ''}:
-                        </span>
-                        <pre>{msg.message}</pre>
-                    </div>
-                ))}
+                {messages.map((msg, idx) => {
+                    const prev = messages[idx - 1];
+                    const showHeader = !prev || prev.user !== msg.user;
+                    return (
+                        <div key={idx} className={`message ${msg.user === 'me' ? 'me' : 'other'}`}>
+                            {showHeader && (
+                                <div className="message-header">
+                                    {msg.user === 'me' ? (
+                                        <span className="time">{formatTime(msg.timestamp)}</span>
+                                    ) : (
+                                        <>
+                                            <span className="sender" style={{ color: getColorCss(msg.color) }}>{msg.user}{msg.isDirect ? '*' : ''}</span>
+                                            <span className="time">{formatTime(msg.timestamp)}</span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                            <pre>{msg.message}</pre>
+                        </div>
+                    );
+                })}
             </div>
             <MessageInput messenger={messenger} setMessages={setMessages} />
         </div>
     );
 }
+

@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { PeerWithColor } from '../../collaboration-instance';
 import { getColorCss } from './utils';
 import { throttle } from 'lodash';
+import { IoSend } from 'react-icons/io5';
 
 const MAX_INPUT_ROWS = 4;
 
@@ -25,6 +26,7 @@ export type MessageInputProps = {
 export function MessageInput({ messenger, setMessages }: MessageInputProps) {
     const [input, setInput] = useState('');
     const [directMessageOpen, setDirectMessageOpen] = useState(false);
+    const [selectedTarget, setSelectedTarget] = useState<string | undefined>(undefined);
     const [users, setUsers] = useState<PeerWithColor[]>([]);
     const [usersWriting, setUsersWriting] = useState<Record<string, NodeJS.Timeout>>({});
 
@@ -73,7 +75,6 @@ export function MessageInput({ messenger, setMessages }: MessageInputProps) {
         (target?: string) => {
             const trimmed = input.trim();
             if (trimmed) {
-                // For demo, use 'me' as senderId. In real app, use actual user id.
                 messenger.sendNotification(
                     sendMessage,
                     { type: 'extension' },
@@ -81,14 +82,14 @@ export function MessageInput({ messenger, setMessages }: MessageInputProps) {
                 );
                 setMessages((prev) => [
                     ...prev,
-                    { user: 'me', message: trimmed, isDirect: !!target },
+                    { user: 'me', message: trimmed, isDirect: !!target, timestamp: Date.now() },
                 ]);
                 setInput('');
             }
         },
         [input, messenger],
     );
-
+    
     const sendWritingNotification = React.useCallback(throttle(() => {
         messenger.sendNotification(isWriting, { type: 'extension' });
     }, WRITING_NOTIFICATION_SEND_THROTTLE_MS), [messenger]);
@@ -96,6 +97,47 @@ export function MessageInput({ messenger, setMessages }: MessageInputProps) {
     return (
         <div className="messageInputContainer">
             <div className='inputArea'>
+                <div className="recipientRow">
+                    <span className="recipientLabel">To:</span>
+                    <ButtonGroup.Dropdown
+                        variant="secondary"
+                        className="recipientDropdown"
+                        open={directMessageOpen}
+                        onOpenChange={setDirectMessageOpen}
+                        content={
+                            <Menu>
+                                <MenuItem
+                                    key="everyone"
+                                    onClick={() => {
+                                        setSelectedTarget(undefined);
+                                        setDirectMessageOpen(false);
+                                    }}
+                                >
+                                    Everyone
+                                </MenuItem>
+                                {users.map((user) => (
+                                    <MenuItem
+                                        key={user.id}
+                                        onClick={() => {
+                                            setSelectedTarget(user.id);
+                                            setDirectMessageOpen(false);
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                color: getColorCss(user.color),
+                                            }}
+                                        >
+                                            {user.name}
+                                        </span>
+                                    </MenuItem>
+                                ))}
+                            </Menu>
+                        }
+                    >
+                        {selectedTarget ? users.find((u) => u.id === selectedTarget)?.name ?? 'Everyone' : 'Everyone'}
+                    </ButtonGroup.Dropdown>
+                </div>
                 {Object.keys(usersWriting).length > 0 && (
                     <div className="writingIndicator">
                         {Object.keys(usersWriting).map((userId) => {
@@ -115,12 +157,15 @@ export function MessageInput({ messenger, setMessages }: MessageInputProps) {
                         sendWritingNotification();
                     }}
                     onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-                        if (e.key === 'Enter' && e.ctrlKey) {
+                        if (e.key === 'Enter') {           
+                            // Shift+Enter -> newline (do nothing)
+                            if (e.shiftKey) {
+                                return;
+                            }
+
+                            // Enter (or Ctrl+Enter) -> send
                             e.preventDefault();
-                            sendChatMessage();
-                        } else if (e.key === 'Enter' && e.altKey) {
-                            e.preventDefault();
-                            setDirectMessageOpen(true);
+                            sendChatMessage(selectedTarget);
                         }
                     }}
                     placeholder="Type a message..."
@@ -129,36 +174,12 @@ export function MessageInput({ messenger, setMessages }: MessageInputProps) {
             <ButtonGroup className="sendButtonGroup">
                 <Button
                     className="sendButton"
-                    onClick={() => sendChatMessage()}
+                    onClick={() => sendChatMessage(selectedTarget)}
+                    aria-label="Send"
+                    title="Send"
                 >
-                    Send
+                    <IoSend aria-hidden="true" />
                 </Button>
-                {users.length > 0 && (
-                    <ButtonGroup.Dropdown
-                        variant="primary"
-                        open={directMessageOpen}
-                        onOpenChange={setDirectMessageOpen}
-                        content={
-                            <Menu>
-                                {users.map((user) => (
-                                    <MenuItem
-                                        key={user.id}
-                                        onClick={() => sendChatMessage(user.id)}
-                                    >
-                                        to{' '}
-                                        <span
-                                            style={{
-                                                color: getColorCss(user.color),
-                                            }}
-                                        >
-                                            {user.name}
-                                        </span>
-                                    </MenuItem>
-                                ))}
-                            </Menu>
-                        }
-                    />
-                )}
             </ButtonGroup>
         </div>
     );

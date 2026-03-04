@@ -29,33 +29,37 @@ export class ChatWebview implements vscode.WebviewViewProvider {
 
         this.roomService.onDidJoinRoom(collabInstance => {
             collabInstance.connection.chat.onMessage(async (userId, message, isDirect) => {
+                //gets the user from connectedUsers to get the name and color for the message. 
                 const user = (await CollaborationInstance.Current?.connectedUsers)?.find(u => u.id === userId);
                 const messageObj: ChatMessage = { message, user: user?.name ?? 'unkown user', color: user?.color, isDirect };
                 this.chatHistory.push(messageObj);
-
+                
                 if(this.currentWebviewId) {
                     this.messenger.sendNotification(messageReceived, this.currentWebviewId, messageObj);
                 }
             });
-
+            
+            // When users change (join/leave), we need to update the user list in the chat webview.
             collabInstance.onDidUsersChange(async () => {
                 if(this.currentWebviewId) {
                     this.messenger.sendNotification(usersChanged, this.currentWebviewId, await this.getOtherUsers());
                 }
             });
-
+            
+            // When another user is writing, we want to show that in the chat webview.
             collabInstance.connection.chat.onIsWriting(async (userId) => {
                 if(this.currentWebviewId) {
                     this.messenger.sendNotification(isWriting, this.currentWebviewId, userId);
                 }
             });
 
+            // Clear chat history when leaving the room
             collabInstance.onDidDispose(() => {
                 this.chatHistory = [];
             });
         });
     }
-
+    
     private messenger: Messenger;
 
     private chatHistory: ChatMessage[] = [];
@@ -101,6 +105,7 @@ export class ChatWebview implements vscode.WebviewViewProvider {
     registerMessengerHandlers(webview: vscode.WebviewView): void {
         this.currentWebviewId = this.messenger.registerWebviewView(webview);
 
+        // handle the incoming messages from the webview 
         this.messenger.onNotification(sendMessage, (message) => {
             this.chatHistory.push({ user: 'me', message: message.message, isDirect: !!message.target });
             if(message.target) {

@@ -189,7 +189,7 @@ export class ProtocolBroadcastConnectionImpl extends AbstractBroadcastConnection
         },
         onIsWriting: (handler) => this.onBroadcast(Messages.Chat.IsWriting, handler)
     };
-
+    
     // Track peers manually for their public encryption keys
     private peers = new Map<string, types.Peer>();
 
@@ -209,7 +209,7 @@ export class ProtocolBroadcastConnectionImpl extends AbstractBroadcastConnection
         this.room.onClose(EMTPY_HANDLER);
         this.peer.onInit(EMTPY_HANDLER);
     }
-
+    
     protected override getPublicKey(origin: string): Encryption.AsymmetricKey {
         const peer = this.peers.get(origin);
         if (peer) {
